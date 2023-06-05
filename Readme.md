@@ -25,7 +25,7 @@ Noise XX protocol consist in three main steps:
 In this proof of concept, we use the Noise XX protocol to establish a secure link. 
 Initially, the nodes are pre-provisioned with a _root_certificate_. The nodes will use this information as a challenge/response to authenticate other node.
 
-![](img/proto.png)
+![](img/proto.svg)
 
 # Run 
 run the test cases
