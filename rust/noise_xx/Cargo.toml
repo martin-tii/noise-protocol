@@ -1,0 +1,60 @@
+[package]
+name = "noise_xx"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["default-resolver"]
+default-resolver = ["aes-gcm", "chacha20poly1305", "blake2", "sha2", "curve25519-dalek"]
+nightly = ["blake2/simd_opt", "subtle/nightly"]
+ring-resolver = ["ring"]
+ring-accelerated = ["ring-resolver", "default-resolver"]
+libsodium-resolver = ["sodiumoxide", "byteorder"]
+libsodium-accelerated = ["libsodium-resolver", "default-resolver"]
+vector-tests = []
+hfs = []
+pqclean_kyber1024 = ["pqcrypto-kyber", "pqcrypto-traits", "hfs", "default-resolver"]
+xchachapoly = ["chacha20poly1305", "default-resolver"]
+risky-raw-split = []
+
+[dependencies]
+rand_core = { version = "0.6", features = ["std", "getrandom"] }
+subtle = "2.4"
+
+# default crypto provider
+aes-gcm = { version = "0.9", optional = true }
+chacha20poly1305 = { version = "0.9", optional = true }
+blake2 = { version = "0.10", optional = true }
+sha2 = { version = "0.10", optional = true }
+curve25519-dalek = { version = "=4.0.0-rc.1", optional = true }
+
+pqcrypto-kyber = { version = "0.7", optional = true }
+pqcrypto-traits = { version = "0.3", optional = true }
+
+# ring crypto provider
+# libsodium crypto provider
+sodiumoxide = { version = "0.2", optional = true }
+byteorder = { version = "1.4", optional = true }
+
+clap = "4.3.3"
+criterion = "0.5.1"
+serde = "1.0"
+serde_json = "1.0"
+serde_derive = "1.0"
+hex = "0.4"
+lazy_static = "1.4"
+x25519-dalek = "1"
+rand = "0.8.5"
+snow = "0.9.2"
+ring = { version = "^0.16.2", optional = true, features = ["std"] }
+openssl = "0.10"
+colored = "2.0.0"
+
+[build-dependencies]
+rustc_version = "0.4"
+
+[package.metadata.docs.rs]
+features = [ "ring-resolver", "libsodium-resolver" ]
+all-features = false
+no-default-features = false
