@@ -10,23 +10,21 @@
 //! as `cargo run -- -i 127.0.0.1` to see the magic happen.
 //! 
 
-use std::fs::File;
-use std::error::Error;
-use std::convert::TryInto;
 
 //extern crate hex;
 use hex;
 
-//extern crate openssl;
-use openssl::hash::MessageDigest;
-use openssl::x509::X509;
 use colored::Colorize;
 
 //extern crate blake2;
-use blake2::{Blake2b, Digest};
+use blake2::Blake2b512;
 
-//extern crate rand;
+
+// extern crate sha2;
+use sha2::{Digest, Sha256};
+
 use rand::RngCore;
+
 use rand::rngs::OsRng;
 use lazy_static::lazy_static;
 use clap::{Command, ArgAction, Arg};
@@ -34,15 +32,22 @@ use snow::{params::NoiseParams, Builder};
 use std::{
     io::{self, Read, Write},
     net::{TcpListener, TcpStream},
-
+    fs::File,
+    error::Error,
+    convert::TryInto,
 };
+
+// extern crate rustls;
+use rustls::Certificate;
+
+
 
 static SECRET: &[u8] = b"i don't care for fidget spinners";
 lazy_static! {
     static ref PARAMS: NoiseParams = "Noise_XXpsk3_25519_ChaChaPoly_BLAKE2s".parse().unwrap();
 }
 
-#[cfg(any(feature = "default-resolver", feature = "ring-accelerated"))]
+// #[cfg(any(feature = "default-resolver", feature = "ring-accelerated"))]
 fn main() {
     let matches = Command::new("example")
         .arg(Arg::new("server")
@@ -65,12 +70,12 @@ fn main() {
     } else {
         let ip_address = matches.get_one::<String>("ipaddress").unwrap();
         println!("Connecting to: {}", ip_address);
-        run_client(ip_address, "../../fake_cert.pem");
+        run_client(ip_address, "../../root_cert.pem");
     }
     println!("all done.");
 }
 
-#[cfg(any(feature = "default-resolver", feature = "ring-accelerated"))]
+// #[cfg(any(feature = "default-resolver", feature = "ring-accelerated"))]
 fn run_server(certificate: &str) {
     let mut buf = vec![0u8; 65535];
 
@@ -103,17 +108,20 @@ fn run_server(certificate: &str) {
     let len = noise.write_message(nonce_bytes, &mut buf).unwrap();
     send(&mut stream, &buf[..len]);
 
+    println!("here.");
 
     while let Ok(msg) = recv(&mut stream) {
+        println!("here now");
+
         let len = noise.read_message(&msg, &mut buf).unwrap();
         println!("client said: {}", String::from_utf8_lossy(&buf[..len]));
         let message: [u8; 16] = buf[..len].try_into().unwrap();
-        validate_message(message, &nonce, &certificate);
+        let _ = validate_message(message, &nonce, &certificate);
     }
     println!("connection closed.");
 }
 
-#[cfg(any(feature = "default-resolver", feature = "ring-accelerated"))]
+// #[cfg(any(feature = "default-resolver", feature = "ring-accelerated"))]
 fn run_client(ip_address: &str, certificate: &str) {
     let mut buf = vec![0u8; 65535];
 
@@ -182,8 +190,7 @@ fn send(stream: &mut TcpStream, buf: &[u8]) {
 
 
 
-fn generate_nonce() -> [u8; 16] {
-    let mut rng = OsRng;
+fn generate_nonce() -> [u8; 16] {    let mut rng = OsRng;
     let mut nonce_bytes = [0u8; 16];
     rng.fill_bytes(&mut nonce_bytes);
     let nonce = u128::from_le_bytes(nonce_bytes);
@@ -193,15 +200,33 @@ fn generate_nonce() -> [u8; 16] {
 
 
 
+fn load_cert(root_cert: &str) -> Result<Certificate, Box<dyn Error>> {
+    // Read the root certificate file
+    let mut file = File::open(root_cert)?;
+    let mut cert_data = vec![];
+    file.read_to_end(&mut cert_data)?;
+
+    // Parse the certificate
+    let cert = Certificate(cert_data);
+
+    Ok(cert)
+}
+
+fn calculate_fingerprint(cert: &Certificate) -> Result<String, Box<dyn Error>> {
+    let cert_data = &cert.0;
+    let fingerprint = Sha256::digest(cert_data);
+    Ok(hex::encode(fingerprint))
+}
+
+
 fn challenge(nonce: &[u8], certificate: &str) -> Result<[u8; 16], Box<dyn Error>> {
-    let expected_cert = load_cert(&certificate)?; //TODO read from input file or argument
-    let expected_cert_fingerprint = expected_cert.digest(MessageDigest::sha256())?;
-    let mut gfg = Blake2b::new();
-    gfg.update(&expected_cert_fingerprint);
+    let expected_cert = load_cert(certificate)?;
+    let fingerprint = calculate_fingerprint(&expected_cert)?;
+    let mut gfg = Blake2b512::new();
+    gfg.update(fingerprint.as_bytes());
     gfg.update(nonce);
 
     let result: [u8; 64] = gfg.finalize().into();
-
     let response = hex::encode(result);
     println!("Response: {}",response);
 
@@ -211,7 +236,6 @@ fn challenge(nonce: &[u8], certificate: &str) -> Result<[u8; 16], Box<dyn Error>
 
     Ok(nonce_result)
 }
-
 
 fn validate_message(message: [u8; 16], my_nonce: &[u8], certificate: &str) -> Result<bool, Box<dyn Error>> {
     let computed_digest = challenge(my_nonce, certificate)?;
@@ -224,21 +248,7 @@ fn validate_message(message: [u8; 16], my_nonce: &[u8], certificate: &str) -> Re
     }
 }
 
-fn load_cert(root_cert: &str) -> Result<X509, Box<dyn Error>> {
-    // Read the root certificate file
-    let mut file = File::open(root_cert)?;
-    let mut cert_data = vec![];
-    file.read_to_end(&mut cert_data)?;
-
-    // Parse the root certificate
-    let cert = X509::from_pem(&cert_data)?;
-    Ok(cert)
-}
-
-
-
-
-#[cfg(not(any(feature = "default-resolver", feature = "ring-accelerated")))]
-fn main() {
-    panic!("Example must be compiled with some cryptographic provider.");
-}
+// #[cfg(not(any(feature = "default-resolver", feature = "ring-accelerated")))]
+// fn main() {
+//     panic!("Example must be compiled with some cryptographic provider.");
+// }

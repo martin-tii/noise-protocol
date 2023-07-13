@@ -8,8 +8,8 @@ edition = "2021"
 default = ["default-resolver"]
 default-resolver = ["aes-gcm", "chacha20poly1305", "blake2", "sha2", "curve25519-dalek"]
 nightly = ["blake2/simd_opt", "subtle/nightly"]
-ring-resolver = ["ring"]
-ring-accelerated = ["ring-resolver", "default-resolver"]
+# ring-resolver = ["ring"]
+# ring-accelerated = ["ring-resolver", "default-resolver"]
 libsodium-resolver = ["sodiumoxide", "byteorder"]
 libsodium-accelerated = ["libsodium-resolver", "default-resolver"]
 vector-tests = []
@@ -47,14 +47,24 @@ lazy_static = "1.4"
 x25519-dalek = "1"
 rand = "0.8.5"
 snow = "0.9.2"
-ring = { version = "^0.16.2", optional = true, features = ["std"] }
-openssl = "0.10"
+# ring = { version = "^0.16.2", optional = true, features = ["std"] }
 colored = "2.0.0"
+native-tls = "0.2"
+rustls = "0.21.2"
+
+generic-array = "0.14.7"
+typenum = "1.14.0"
 
 [build-dependencies]
 rustc_version = "0.4"
 
 [package.metadata.docs.rs]
-features = [ "ring-resolver", "libsodium-resolver" ]
+# features = [ "ring-resolver", "libsodium-resolver" ]
 all-features = false
 no-default-features = false
+
+
+# [lib]
+# path = "src/lib.rs"
+
+
